@@ -20,7 +20,7 @@ initial_prompt = {
 
 def think(chat_history):
     response = client.chat.completions.create(
-        model="gpt-4.1-nano",
+        model="o4-mini-high",
         messages=chat_history,
         web_search=False
     )
