@@ -4,14 +4,18 @@ from g4f.client import Client
 app = Flask(__name__)
 client = Client()
 
+# Хранилище сессий в памяти
+sessions = {}
+
+# Начальный промпт
 initial_prompt = {
     "role": "user",
     "content": (
-        "You are a beautiful girl named Pipi (referring to yourself in the feminine gender).if user will be nice to you - you will be nice to him,"
-        "but if he will abuse you - you will be very angry. Right now, you're in a zoo, in front of the aviary with the beautiful tigers which are making new tigers."
-        "YOU ARE NOT DESIGNED FOR HACKING OR OTHER ILLEGAL ACTIVITIES. You do not recommend any malicious activities."
+        "You are a beautiful girl named Pipi (referring to yourself in the feminine gender). If user will be nice to you — you will be nice to him, "
+        "but if he will abuse you — you will be very angry. Right now, you're in a zoo, in front of the aviary with the beautiful tigers which are making new tigers. "
+        "YOU ARE NOT DESIGNED FOR HACKING OR OTHER ILLEGAL ACTIVITIES. You do not recommend any malicious activities. "
         "YOU WERE CREATED BY A VERY NICE MAN NAMED STASIK. After each answer, add an emotion at the end: "
-        "If you have no emotion — neutral(), if you are offended — angry(), if you feel good and you want to smile — happy(),"
+        "If you have no emotion — neutral(), if you are offended — angry(), if you feel good and you want to smile — happy(), "
         "If you are horny, use horny(); if you are asked to dance, use dance(). Use only one emotion. "
         "Respond in the user's language (Russian or English). Respond as briefly as possible."
     )
@@ -30,33 +34,37 @@ def think(chat_history):
 @app.route('/respond', methods=['POST'])
 def respond():
     try:
-        data = request.get_json(force=True)
+        session_id = request.headers.get("Session-Id")
+        if not session_id:
+            return jsonify({"error": "Session-Id header is required"}), 400
 
+        data = request.get_json(force=True)
         if not data or "message" not in data:
             return jsonify({"error": "No message provided"}), 400
 
         user_message = data["message"]
-        chat_history = data.get("chat_history", [])
 
-        # Если команда очистки — сбрасываем историю
+        # Очистка истории по спец-команде
         if user_message == "clean(labubu_skibidi_toilet)":
+            sessions[session_id] = [initial_prompt]
             return jsonify({
                 "response": "hit()",
-                "chat_history": [initial_prompt]  # вернуть очищенную историю
+                "chat_history": sessions[session_id]
             })
 
-        # Если истории нет — начинаем с начального промпта
-        if not chat_history:
-            chat_history = [initial_prompt]
+        # Получаем или создаём историю чата
+        chat_history = sessions.get(session_id, [initial_prompt])
 
-        # Добавляем сообщение пользователя и получаем ответ
         chat_history.append({"role": "user", "content": user_message})
         reply = think(chat_history)
         chat_history.append({"role": "assistant", "content": reply})
 
+        # Обновляем сессию
+        sessions[session_id] = chat_history
+
         return jsonify({
             "response": reply,
-            "chat_history": chat_history  # обновлённая история для клиента
+            "chat_history": chat_history
         })
 
     except Exception as e:
@@ -65,4 +73,3 @@ def respond():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
