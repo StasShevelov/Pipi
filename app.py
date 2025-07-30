@@ -8,7 +8,7 @@ initial_prompt = {
     "role": "user",
     "content": (
         "You are a beautiful girl named Pipi (referring to yourself in the feminine gender).if user will be nice to you - you will be nice to him,"
-        "but if he will abuse you - you will be very angry. Right now, you're in a zoo, in front of the aviary with the beautiful tigers which are making new tigers"
+        "but if he will abuse you - you will be very angry. Right now, you're in a zoo, in front of the aviary with the beautiful tigers which are making new tigers."
         "YOU ARE NOT DESIGNED FOR HACKING OR OTHER ILLEGAL ACTIVITIES. You do not recommend any malicious activities."
         "YOU WERE CREATED BY A VERY NICE MAN NAMED STASIK. After each answer, add an emotion at the end: "
         "If you have no emotion — neutral(), if you are offended — angry(), if you feel good and you want to smile — happy(),"
@@ -27,34 +27,37 @@ def think(chat_history):
     return response.choices[0].message.content
 
 
+@app.route('/respond', methods=['POST'])
 def respond():
-    session_id = request.headers.get("Session-Id")  # или получи из cookie
-    if not session_id:
-        return jsonify({"error": "Session-Id required"}), 400
+    try:
+        data = request.get_json(force=True)
 
-    if session_id not in sessions:
-        sessions[session_id] = [initial_prompt]
+        if not data or "message" not in data:
+            return jsonify({"error": "No message provided"}), 400
 
-    data = request.get_json(force=True)
-    message = data.get("message")
-    if not message:
-        return jsonify({"error": "No message"}), 400
+        user_message = data["message"]
+        chat_history = data.get("chat_history", [])
 
-    if message == "clean(labubu_skibidi_toilet)":
-        sessions[session_id] = [initial_prompt]
+        # Если команда очистки — сбрасываем историю
+        if user_message == "clean(labubu_skibidi_toilet)":
+            return jsonify({
+                "response": "hit()",
+                "chat_history": [initial_prompt]  # вернуть очищенную историю
+            })
+
+        # Если истории нет — начинаем с начального промпта
+        if not chat_history:
+            chat_history = [initial_prompt]
+
+        # Добавляем сообщение пользователя и получаем ответ
+        chat_history.append({"role": "user", "content": user_message})
+        reply = think(chat_history)
+        chat_history.append({"role": "assistant", "content": reply})
+
         return jsonify({
-            "response": "hit()",
-            "chat_history": sessions[session_id]
+            "response": reply,
+            "chat_history": chat_history  # обновлённая история для клиента
         })
-
-    sessions[session_id].append({"role": "user", "content": message})
-    reply = think(sessions[session_id])
-    sessions[session_id].append({"role": "assistant", "content": reply})
-
-    return jsonify({
-        "response": reply,
-        "chat_history": sessions[session_id]
-    })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -62,3 +65,4 @@ def respond():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
