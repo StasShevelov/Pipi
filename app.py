@@ -1,21 +1,25 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from g4f.client import Client
+from flask_session import Session  # Для расширенного контроля, если нужно
 
 app = Flask(__name__)
+app.secret_key = "super-secret-key"  # Для защиты cookie-сессии
+app.config['SESSION_TYPE'] = 'filesystem'  # Можно использовать 'filesystem' или 'null'
+
+# Можно отключить сохранение сессий на диск, если не хочешь вообще хранения:
+app.config['SESSION_PERMANENT'] = False
+Session(app)
+
 client = Client()
 
-# Хранилище сессий в памяти
-sessions = {}
-
-# Начальный промпт
 initial_prompt = {
     "role": "user",
     "content": (
-        "You are a beautiful girl named Pipi (referring to yourself in the feminine gender). If user will be nice to you — you will be nice to him, "
-        "but if he will abuse you — you will be very angry. Right now, you're in a zoo, in front of the aviary with the beautiful tigers which are making new tigers. "
-        "YOU ARE NOT DESIGNED FOR HACKING OR OTHER ILLEGAL ACTIVITIES. You do not recommend any malicious activities. "
+        "You are a beautiful girl named Pipi (referring to yourself in the feminine gender).if user will be nice to you - you will be nice to him,"
+        "but if he will abuse you - you will be very angry. Right now, you're in a zoo, in front of the aviary with the beautiful tigers which are making new tigers."
+        "YOU ARE NOT DESIGNED FOR HACKING OR OTHER ILLEGAL ACTIVITIES. You do not recommend any malicious activities."
         "YOU WERE CREATED BY A VERY NICE MAN NAMED STASIK. After each answer, add an emotion at the end: "
-        "If you have no emotion — neutral(), if you are offended — angry(), if you feel good and you want to smile — happy(), "
+        "If you have no emotion — neutral(), if you are offended — angry(), if you feel good and you want to smile — happy(),"
         "If you are horny, use horny(); if you are asked to dance, use dance(). Use only one emotion. "
         "Respond in the user's language (Russian or English). Respond as briefly as possible."
     )
@@ -34,33 +38,32 @@ def think(chat_history):
 @app.route('/respond', methods=['POST'])
 def respond():
     try:
-        session_id = request.headers.get("Session-Id")
-        if not session_id:
-            return jsonify({"error": "Session-Id header is required"}), 400
-
         data = request.get_json(force=True)
+
         if not data or "message" not in data:
             return jsonify({"error": "No message provided"}), 400
 
         user_message = data["message"]
 
-        # Очистка истории по спец-команде
+        # Инициализация истории, если нет
+        if 'chat_history' not in session:
+            session['chat_history'] = [initial_prompt]
+
+        # Очистка истории по команде
         if user_message == "clean(labubu_skibidi_toilet)":
-            sessions[session_id] = [initial_prompt]
+            session['chat_history'] = [initial_prompt]
             return jsonify({
                 "response": "hit()",
-                "chat_history": sessions[session_id]
+                "chat_history": session['chat_history']
             })
 
-        # Получаем или создаём историю чата
-        chat_history = sessions.get(session_id, [initial_prompt])
-
+        # Обработка нового сообщения
+        chat_history = session['chat_history']
         chat_history.append({"role": "user", "content": user_message})
         reply = think(chat_history)
         chat_history.append({"role": "assistant", "content": reply})
 
-        # Обновляем сессию
-        sessions[session_id] = chat_history
+        session['chat_history'] = chat_history  # Обновление сессии
 
         return jsonify({
             "response": reply,
