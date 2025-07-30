@@ -20,44 +20,41 @@ initial_prompt = {
 
 def think(chat_history):
     response = client.chat.completions.create(
-        model="evil",
+        model="gpt-4.1-nano",
         messages=chat_history,
         web_search=False
     )
     return response.choices[0].message.content
 
 
-@app.route('/respond', methods=['POST'])
 def respond():
-    try:
-        data = request.get_json(force=True)
+    session_id = request.headers.get("Session-Id")  # или получи из cookie
+    if not session_id:
+        return jsonify({"error": "Session-Id required"}), 400
 
-        if not data or "message" not in data:
-            return jsonify({"error": "No message provided"}), 400
+    if session_id not in sessions:
+        sessions[session_id] = [initial_prompt]
 
-        user_message = data["message"]
-        chat_history = data.get("chat_history", [])
+    data = request.get_json(force=True)
+    message = data.get("message")
+    if not message:
+        return jsonify({"error": "No message"}), 400
 
-        # Если команда очистки — сбрасываем историю
-        if user_message == "clean(labubu_skibidi_toilet)":
-            return jsonify({
-                "response": "hit()",
-                "chat_history": [initial_prompt]  # вернуть очищенную историю
-            })
-
-        # Если истории нет — начинаем с начального промпта
-        if not chat_history:
-            chat_history = [initial_prompt]
-
-        # Добавляем сообщение пользователя и получаем ответ
-        chat_history.append({"role": "user", "content": user_message})
-        reply = think(chat_history)
-        chat_history.append({"role": "assistant", "content": reply})
-
+    if message == "clean(labubu_skibidi_toilet)":
+        sessions[session_id] = [initial_prompt]
         return jsonify({
-            "response": reply,
-            "chat_history": chat_history  # обновлённая история для клиента
+            "response": "hit()",
+            "chat_history": sessions[session_id]
         })
+
+    sessions[session_id].append({"role": "user", "content": message})
+    reply = think(sessions[session_id])
+    sessions[session_id].append({"role": "assistant", "content": reply})
+
+    return jsonify({
+        "response": reply,
+        "chat_history": sessions[session_id]
+    })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
