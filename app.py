@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, session
 from g4f.client import Client
 from flask_session import Session  # Для расширенного контроля, если нужно
-
+import traceback
 app = Flask(__name__)
 app.secret_key = "super-secret-key"  # Для защиты cookie-сессии
 app.config['SESSION_TYPE'] = 'filesystem'  # Можно использовать 'filesystem' или 'null'
@@ -71,6 +71,7 @@ def respond():
         })
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
