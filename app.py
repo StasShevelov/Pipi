@@ -29,7 +29,7 @@ initial_prompt = {
 def think(chat_history):
     try:
         response = client.chat.completions.create(
-            model="deepseek-r1-distill-qwen-1.5b",
+            model="deepseek-r1-distill-llama-70b",
             messages=chat_history,
             web_search=False
         )
