@@ -29,7 +29,7 @@ initial_prompt = {
 def think(chat_history):
     try:
         response = client.chat.completions.create(
-            model="o4-mini-high",
+            model="gpt-4.1-nano",
             messages=chat_history,
             web_search=False
         )
@@ -64,8 +64,7 @@ def respond():
 
         reply = think(chat_history)
 
-        if reply == "model_error()":
-            reply = "Я не могу сейчас ответить, попробуй позже. neutral()"
+     
 
         chat_history.append({"role": "assistant", "content": reply})
 
